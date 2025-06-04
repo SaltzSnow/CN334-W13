@@ -5,11 +5,11 @@ from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
 from .models import Customer
 from .serializers import CustomerSerializer
 import json
 
-# Create your views here.
 @csrf_exempt
 def register(request):
     if request.method == 'POST':
@@ -24,10 +24,8 @@ def register(request):
             post_code = data.get('post_code')
             tel = data.get('tel')
             
-            # Create user
             user = User.objects.create_user(username=username, password=password, email=email)
             
-            # Create customer profile
             customer = Customer.objects.create(
                 user=user,
                 fullname=fullname,
@@ -53,3 +51,24 @@ class CustomerView(APIView):
             return Response(serializer.data)
         except Customer.DoesNotExist:
             return Response({'status': 'error', 'message': 'Customer profile not found'}, status=404)
+
+class UserDetailView(APIView):
+    def get(self, request, username):
+        try:
+            user = User.objects.get(username=username)
+            try:
+                customer = Customer.objects.get(user=user)
+                serializer = CustomerSerializer(customer)
+                return Response({
+                    'username': user.username,
+                    'email': user.email,
+                    'customer_data': serializer.data
+                })
+            except Customer.DoesNotExist:
+                return Response({
+                    'username': user.username,
+                    'email': user.email,
+                    'customer_data': None
+                })
+        except User.DoesNotExist:
+            return Response({'error': 'ไม่พบผู้ใช้'}, status=status.HTTP_404_NOT_FOUND)
